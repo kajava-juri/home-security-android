@@ -14,3 +14,10 @@ data class WebSocketMessage(
     val action: String,
     val topics: List<String>? = null
 )
+
+data class CommandResponse(
+    val status: String,
+    val message: String,
+    val command: String,
+    val timestamp: Long
+)

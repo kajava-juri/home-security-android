@@ -17,4 +17,7 @@
     <string name="app_description">This app monitors your home security system and sends push notifications when alarms are triggered.</string>
     <string name="notification_permission_required">Notification permission is required for security alerts</string>
     <string name="test_notification_sent">Test notification sent</string>
+    <string name="reset_alarm">Send RESET command</string>
+    <string name="arm_alarm">Send ARM command</string>
+    <string name="disarm_alarm">Send DISARM command</string>
 </resources>

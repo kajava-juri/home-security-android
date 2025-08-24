@@ -7,6 +7,7 @@ import android.os.IBinder
 import android.util.Log
 import com.google.gson.Gson
 import com.kajava.homesecurity.models.AlarmMessage
+import com.kajava.homesecurity.models.CommandResponse
 import org.eclipse.paho.client.mqttv3.*
 import org.eclipse.paho.client.mqttv3.persist.MemoryPersistence
 import java.util.*
@@ -27,6 +28,7 @@ class MqttService : Service() {
         private const val BROKER_URL = "ssl://raspberrypi.local:8883" // Replace with your broker URL
         private const val CLIENT_ID = "android_home_security"
         private const val TOPIC_PATTERN = "sensor_hub/+/alarm/+"  // Subscribe to all alarm topics
+        private const val COMMAND_RESPONSE_TOPIC = "sensor_hub/+/cmd/response"
         private const val QOS = 1
         private const val RECONNECT_DELAY_SECONDS = 5L
     }
@@ -40,6 +42,7 @@ class MqttService : Service() {
 
     // Connection status callback
     var onConnectionStatusChanged: ((Boolean) -> Unit)? = null
+    var onCommandResponse: ((CommandResponse) -> Unit)? = null
 
     inner class LocalBinder : Binder() {
         fun getService(): MqttService = this@MqttService
@@ -111,7 +114,17 @@ class MqttService : Service() {
 
                     topic?.let { t ->
                         message?.let { msg ->
-                            handleAlarmMessage(t, msg.toString())
+                            when {
+                                t == COMMAND_RESPONSE_TOPIC -> {
+                                    handleCommandResponse(msg.toString())
+                                }
+                                t.matches("sensor_hub/.*/alarm/.*".toRegex()) -> {
+                                    handleAlarmMessage(t, msg.toString())
+                                }
+                                else -> {
+                                    Log.d(TAG, "Unhandled topic: $t")
+                                }
+                            }
                         }
                     }
                 }
@@ -135,6 +148,26 @@ class MqttService : Service() {
         } catch (e: Exception) {
             Log.e(TAG, "Failed to connect to MQTT broker: ${e.message}")
             scheduleReconnect()
+        }
+    }
+
+    private fun handleCommandResponse(messageContent: String) {
+        try {
+            Log.d(TAG, "Handling command response: $messageContent")
+            val commandResponse = gson.fromJson(messageContent, CommandResponse::class.java)
+
+            // Log the response
+            Log.d(TAG, "Command response: ${commandResponse.command} - ${commandResponse.status}: ${commandResponse.message}")
+
+            // Notify callback if set
+            onCommandResponse?.invoke(commandResponse)
+
+            // Show a toast notification for command responses (optional)
+            // You can customize this behavior based on your needs
+
+        } catch (e: Exception) {
+            Log.e(TAG, "Error parsing command response: ${e.message}")
+            e.printStackTrace()
         }
     }
 

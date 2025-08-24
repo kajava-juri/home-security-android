@@ -14,12 +14,20 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import com.kajava.homesecurity.databinding.ActivityMainBinding
+import com.google.gson.Gson
+import java.util.Locale
 
 class MainActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityMainBinding
     private var mqttService: MqttService? = null
     private var isServiceBound = false
+    private val gson = Gson()
+
+    companion object {
+        private const val COMMAND_TOPIC = "sensor_hub/pico_w_1/cmd"
+        private const val COMMAND_SOURCE = "android_app"
+    }
 
     private val serviceConnection = object : ServiceConnection {
         override fun onServiceConnected(className: ComponentName, service: IBinder) {
@@ -78,6 +86,45 @@ class MainActivity : AppCompatActivity() {
             btnTestNotification.setOnClickListener {
                 testNotification()
             }
+
+            btnArmAlarm.setOnClickListener {
+                sendCommand("arm")
+            }
+
+            btnDisarmAlarm.setOnClickListener {
+                sendCommand("disarm")
+            }
+
+            btnResetAlarm.setOnClickListener {
+                sendCommand("reset")
+            }
+        }
+    }
+
+    private fun sendCommand(command: String) {
+        if (!isServiceBound || mqttService?.isConnected() != true) {
+            Toast.makeText(this, "Not connected to MQTT broker", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        try {
+            // Create command message
+            val commandMessage = mapOf(
+                "command" to command,
+                "source" to COMMAND_SOURCE
+            )
+
+            val jsonMessage = gson.toJson(commandMessage)
+
+            // Publish command
+            mqttService?.publishMessage(COMMAND_TOPIC, jsonMessage)
+
+            // Show feedback to user
+            val commandName = command.capitalize(Locale.ROOT)
+            Toast.makeText(this, "$commandName command sent", Toast.LENGTH_SHORT).show()
+
+        } catch (e: Exception) {
+            Toast.makeText(this, "Failed to send $command command: ${e.message}", Toast.LENGTH_LONG).show()
         }
     }
 
@@ -125,6 +172,10 @@ class MainActivity : AppCompatActivity() {
 
         updateUIButtons(false)
         updateConnectionStatus(false)
+    }
+
+    private fun sendResetCommand() {
+
     }
 
     private fun testNotification() {
