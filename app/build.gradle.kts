@@ -49,6 +49,17 @@ dependencies {
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
 
+    // RecyclerView
+    implementation(libs.androidx.recyclerview)
+    // SwipeRefreshLayout
+    implementation(libs.androidx.swiperefreshlayout)
+    // Retrofit for API calls
+    implementation(libs.retrofit)
+    implementation(libs.converter.gson)
+    implementation(libs.logging.interceptor)
+    // Coroutines
+    implementation(libs.kotlinx.coroutines.android)
+
     // MQTT Client
     implementation(libs.paho.mqtt.client)
     implementation(libs.paho.android.service)

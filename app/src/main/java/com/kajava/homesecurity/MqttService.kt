@@ -25,7 +25,7 @@ class MqttService : Service() {
 
     companion object {
         private const val TAG = "MqttService"
-        private const val BROKER_URL = "ssl://raspberrypi.local:8883" // Replace with your broker URL
+        private const val BROKER_URL = "ssl://192.168.1.223:8883" // Replace with your broker URL
         private const val CLIENT_ID = "android_home_security"
         private const val TOPIC_PATTERN = "sensor_hub/+/alarm/+"  // Subscribe to all alarm topics
         private const val COMMAND_RESPONSE_TOPIC = "sensor_hub/+/cmd/response"

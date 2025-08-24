@@ -20,4 +20,5 @@
     <string name="reset_alarm">Send RESET command</string>
     <string name="arm_alarm">Send ARM command</string>
     <string name="disarm_alarm">Send DISARM command</string>
+    <string name="status_alarm">Send STATUS command</string>
 </resources>

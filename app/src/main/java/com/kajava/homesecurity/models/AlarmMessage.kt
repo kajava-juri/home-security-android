@@ -21,3 +21,32 @@ data class CommandResponse(
     val command: String,
     val timestamp: Long
 )
+
+data class Device(
+    @SerializedName("ID")
+    val id: Int,
+    @SerializedName("CreatedAt")
+    val createdAt: String,
+    @SerializedName("UpdatedAt")
+    val updatedAt: String,
+    @SerializedName("DeletedAt")
+    val deletedAt: String?,
+    val name: String,
+    val description: String?,
+    val location: String?
+)
+
+data class DevicesResponse(
+    val data: List<Device>,
+    val page: Int,
+    val page_size: Int,
+    val total_count: Int,
+    val total_pages: Int
+)
+
+data class DeviceStatus(
+    val isOnline: Boolean = false,
+    val lastSeen: Long? = null,
+    val alarmState: String? = null, // armed, disarmed, triggered
+    val batteryLevel: Int? = null
+)
