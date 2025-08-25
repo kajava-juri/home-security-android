@@ -31,6 +31,18 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <!-- Settings Activity -->
+        <activity
+            android:name=".SettingsActivity"
+            android:exported="false"
+            android:parentActivityName=".DeviceListActivity"
+            android:theme="@style/Theme.HomeSecurityMonitor">
+            <meta-data
+                android:name="android.support.PARENT_ACTIVITY"
+                android:value=".DeviceListActivity" />
+        </activity>
+
         <!-- Device Detail Activity -->
         <activity
             android:name=".DeviceDetailActivity"
@@ -41,12 +53,6 @@
                 android:name="android.support.PARENT_ACTIVITY"
                 android:value=".DeviceListActivity" />
         </activity>
-
-        <!-- Legacy MainActivity (can be removed if no longer needed) -->
-        <activity
-            android:name=".MainActivity"
-            android:exported="false"
-            android:theme="@style/Theme.HomeSecurityMonitor" />
 
         <!-- MQTT Background Service -->
         <service

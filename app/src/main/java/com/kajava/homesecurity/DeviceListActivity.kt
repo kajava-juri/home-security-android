@@ -10,6 +10,8 @@ import android.os.Build
 import android.os.Bundle
 import android.os.IBinder
 import android.util.Log
+import android.view.Menu
+import android.view.MenuItem
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
@@ -32,7 +34,7 @@ class DeviceListActivity : AppCompatActivity() {
     private lateinit var deviceAdapter: DeviceAdapter
     private var mqttService: MqttService? = null
     private var isServiceBound = false
-    private lateinit var apiService: ApiService
+    private var apiService: ApiService? = null
 
     companion object {
         private const val TAG = "DeviceListActivity"
@@ -75,23 +77,68 @@ class DeviceListActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        binding = ActivityDeviceListBinding.inflate(layoutInflater)
-        setContentView(binding.root)
 
-        setupApi()
-        setupRecyclerView()
-        setupUI()
-        checkPermissionsAndStart()
-        loadDevices()
+        try {
+            binding = ActivityDeviceListBinding.inflate(layoutInflater)
+            setContentView(binding.root)
+
+            Log.d(TAG, "DeviceListActivity created successfully")
+
+            setupApi()
+            setupRecyclerView()
+            setupUI()
+            checkPermissionsAndStart()
+            loadDevices()
+
+        } catch (e: Exception) {
+            Log.e(TAG, "Error in onCreate: ${e.message}", e)
+            Toast.makeText(this, "Error starting app: ${e.message}", Toast.LENGTH_LONG).show()
+        }
+    }
+
+    override fun onCreateOptionsMenu(menu: Menu): Boolean {
+        menuInflater.inflate(R.menu.device_list_menu, menu)
+        return true
+    }
+
+    override fun onOptionsItemSelected(item: MenuItem): Boolean {
+        return when (item.itemId) {
+            R.id.action_settings -> {
+                startActivity(Intent(this, SettingsActivity::class.java))
+                true
+            }
+            R.id.action_refresh -> {
+                loadDevices()
+                true
+            }
+            else -> super.onOptionsItemSelected(item)
+        }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        // Reload settings when returning from settings screen
+        if (isServiceBound) {
+            // Update MQTT service with new settings if changed
+            val settingsManager = com.kajava.homesecurity.settings.SettingsManager(this)
+            val newSettings = settingsManager.loadSettings()
+            mqttService?.updateSettings(newSettings)
+        }
     }
 
     private fun setupApi() {
-        val retrofit = Retrofit.Builder()
-            .baseUrl(ApiConfig.API_URL)
-            .addConverterFactory(GsonConverterFactory.create())
-            .build()
+        try {
+            val retrofit = Retrofit.Builder()
+                .baseUrl(ApiConfig.API_URL)
+                .addConverterFactory(GsonConverterFactory.create())
+                .build()
 
-        apiService = retrofit.create(ApiService::class.java)
+            apiService = retrofit.create(ApiService::class.java)
+        } catch (e: Exception) {
+            Log.e(TAG, "Error setting up API: ${e.message}", e)
+            apiService = null
+        }
+
     }
 
     private fun setupRecyclerView() {
@@ -113,6 +160,10 @@ class DeviceListActivity : AppCompatActivity() {
 
     private fun setupUI() {
         binding.apply {
+            // Set up toolbar
+            setSupportActionBar(toolbar)
+            supportActionBar?.title = "Home Security Devices"
+
             // Swipe refresh functionality
             swipeRefresh.setOnRefreshListener {
                 loadDevices()
@@ -196,7 +247,7 @@ class DeviceListActivity : AppCompatActivity() {
 
         lifecycleScope.launch {
             try {
-                val response = apiService.getDevices()
+                val response = apiService!!.getDevices()
 
                 if (response.isSuccessful) {
                     val devicesResponse = response.body()
@@ -233,8 +284,12 @@ class DeviceListActivity : AppCompatActivity() {
 
     override fun onDestroy() {
         super.onDestroy()
-        if (isServiceBound) {
-            unbindService(serviceConnection)
+        try {
+            if (isServiceBound) {
+                unbindService(serviceConnection)
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error in onDestroy: ${e.message}", e)
         }
     }
 }

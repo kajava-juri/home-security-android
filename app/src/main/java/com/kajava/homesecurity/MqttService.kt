@@ -20,6 +20,8 @@ import javax.net.ssl.KeyManagerFactory
 import java.security.KeyStore
 import java.security.cert.CertificateFactory
 import javax.net.ssl.SSLSocketFactory
+import com.kajava.homesecurity.settings.SettingsManager
+import com.kajava.homesecurity.settings.AppSettings
 
 class MqttService : Service() {
 
@@ -44,6 +46,9 @@ class MqttService : Service() {
     var onConnectionStatusChanged: ((Boolean) -> Unit)? = null
     var onCommandResponse: ((CommandResponse) -> Unit)? = null
 
+    private lateinit var settingsManager: SettingsManager
+    private var currentSettings = AppSettings()
+
     inner class LocalBinder : Binder() {
         fun getService(): MqttService = this@MqttService
     }
@@ -51,7 +56,9 @@ class MqttService : Service() {
     override fun onCreate() {
         super.onCreate()
         notificationHelper = NotificationHelper(this)
-        Log.d(TAG, "MQTT Service created")
+        settingsManager = SettingsManager(this)
+        currentSettings = settingsManager.loadSettings()
+        Log.d(TAG, "MQTT Service created with settings: ${currentSettings.mqttBrokerHost}:${currentSettings.mqttBrokerPort}")
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -64,6 +71,20 @@ class MqttService : Service() {
         }
 
         return START_STICKY // Restart service if killed
+    }
+
+    // Add method to update settings
+    fun updateSettings(newSettings: AppSettings) {
+        if (currentSettings != newSettings) {
+            Log.d(TAG, "Settings updated, reconnecting...")
+            currentSettings = newSettings
+
+            // Reconnect with new settings
+            if (isServiceRunning) {
+                disconnectMqtt()
+                connectMqtt()
+            }
+        }
     }
 
     override fun onBind(intent: Intent): IBinder {
@@ -80,21 +101,31 @@ class MqttService : Service() {
 
     private fun connectMqtt() {
         try {
+            // Reload settings in case they changed
+            currentSettings = settingsManager.loadSettings()
+
+            val brokerUrl = buildBrokerUrl()
+            Log.d(TAG, "Connecting to MQTT broker: $brokerUrl")
+
             val persistence = MemoryPersistence()
-            mqttClient = MqttClient(BROKER_URL, CLIENT_ID, persistence)
+            mqttClient = MqttClient(brokerUrl, currentSettings.mqttClientId, persistence)
 
             val connOpts = MqttConnectOptions().apply {
                 isCleanSession = true
-                connectionTimeout = 10
-                keepAliveInterval = 20
-                isAutomaticReconnect = false // We handle reconnection manually
+                connectionTimeout = currentSettings.connectionTimeout
+                keepAliveInterval = currentSettings.keepAliveInterval
+                isAutomaticReconnect = false
 
-                // Set up SSL/TLS
-                socketFactory = createSSLSocketFactory()
+                // Set up SSL/TLS if enabled
+                if (currentSettings.useSsl) {
+                    socketFactory = createSSLSocketFactory()
+                }
 
-                // If you have MQTT username/password, uncomment and set:
-                // userName = "your_mqtt_username"
-                // password = "your_mqtt_password".toCharArray()
+                // Set authentication if provided
+                if (currentSettings.mqttUsername.isNotEmpty()) {
+                    userName = currentSettings.mqttUsername
+                    password = currentSettings.mqttPassword.toCharArray()
+                }
             }
 
             mqttClient?.setCallback(object : MqttCallback {
@@ -134,21 +165,30 @@ class MqttService : Service() {
                 }
             })
 
-            Log.d(TAG, "Connecting to MQTT broker: $BROKER_URL")
             mqttClient?.connect(connOpts)
 
             Log.d(TAG, "Connected to MQTT broker")
             notificationHelper.updateServiceNotification(true)
             onConnectionStatusChanged?.invoke(true)
 
-            // Subscribe to alarm topics
+            // Subscribe to topics
             mqttClient?.subscribe(TOPIC_PATTERN, QOS)
-            Log.d(TAG, "Subscribed to topic pattern: $TOPIC_PATTERN")
+            mqttClient?.subscribe(COMMAND_RESPONSE_TOPIC, QOS)
+            Log.d(TAG, "Subscribed to topics")
 
         } catch (e: Exception) {
             Log.e(TAG, "Failed to connect to MQTT broker: ${e.message}")
             scheduleReconnect()
         }
+    }
+
+    private fun buildBrokerUrl(): String {
+        val protocol = if (currentSettings.useSsl) "ssl" else "tcp"
+        return "$protocol://${currentSettings.mqttBrokerHost}:${currentSettings.mqttBrokerPort}"
+    }
+
+    fun getCurrentSettings(): AppSettings {
+        return currentSettings
     }
 
     private fun handleCommandResponse(messageContent: String) {
