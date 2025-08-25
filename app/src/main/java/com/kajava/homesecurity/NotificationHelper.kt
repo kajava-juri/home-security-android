@@ -55,7 +55,7 @@ class NotificationHelper(private val context: Context) {
     }
 
     fun showAlarmNotification(alarmMessage: AlarmMessage) {
-        val intent = Intent(context, MainActivity::class.java).apply {
+        val intent = Intent(context, DeviceListActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
         }
 
@@ -125,7 +125,7 @@ class NotificationHelper(private val context: Context) {
     }
 
     fun createServiceNotification(): android.app.Notification {
-        val intent = Intent(context, MainActivity::class.java)
+        val intent = Intent(context, DeviceListActivity::class.java)
         val pendingIntent = PendingIntent.getActivity(
             context,
             0,
